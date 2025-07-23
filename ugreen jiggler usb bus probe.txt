@@ -1,0 +1,107 @@
+Full Speed device @ 44 (0x14700000): .............................................   Composite device: "USB MOUSE & HID"
+    Port Information:   0x001a
+           Not Captive
+           Attached to Root Hub
+           External Device
+           Connected
+           Enabled
+    Number Of Endpoints (includes EP0):   
+        Total Endpoints for Configuration 1 (current):   3
+    Device Descriptor   
+        Descriptor Version Number:   0x0110
+        Device Class:   0   (Composite)
+        Device Subclass:   0
+        Device Protocol:   0
+        Device MaxPacketSize:   64
+        Device VendorID/ProductID:   0x10D6/0xB021   (Actions Semiconductor Co., Ltd.)
+        Device Version Number:   0x0000
+        Number of Configurations:   1
+        Manufacturer String:   1 "Actions"
+        Product String:   2 "USB MOUSE & HID"
+        Serial Number String:   3 "0123456789AB"
+    Configuration Descriptor (current config)   
+        Length (and contents):   41
+            Raw Descriptor (hex)    0000: 09 02 29 00 01 01 00 80  32 09 04 00 00 02 03 00  
+            Raw Descriptor (hex)    0010: 00 00 09 21 10 01 00 01  22 5E 00 07 05 81 03 40  
+            Raw Descriptor (hex)    0020: 00 01 07 05 01 03 40 00  01 
+        Number of Interfaces:   1
+        Configuration Value:   1
+        Attributes:   0x80 (bus-powered)
+        MaxPower:   100 ma
+        Interface #0 - HID   
+            Alternate Setting   0
+            Number of Endpoints   2
+            Interface Class:   3   (HID)
+            Interface Subclass;   0
+            Interface Protocol:   0
+            HID Descriptor   
+                Descriptor Version Number:   0x0110
+                Country Code:   0
+                Descriptor Count:   1
+                Descriptor 1   
+                    Type:   0x22  (Report Descriptor)
+                    Length (and contents):   94
+                        Raw Descriptor (hex)    0000: 05 01 09 02 A1 01 85 03  09 01 A1 00 05 09 19 01  
+                        Raw Descriptor (hex)    0010: 29 08 15 00 25 01 95 08  75 01 81 02 05 01 09 30  
+                        Raw Descriptor (hex)    0020: 09 31 15 81 25 7F 75 08  95 02 81 06 09 38 15 81  
+                        Raw Descriptor (hex)    0030: 25 7F 75 08 95 01 81 06  C0 C0 06 90 FF 09 01 A1  
+                        Raw Descriptor (hex)    0040: 01 09 03 85 55 15 00 26  FF 00 75 08 95 3F 82 02  
+                        Raw Descriptor (hex)    0050: 01 09 04 15 00 25 01 75  08 95 3F 91 01 C0 
+                    Parsed Report Descriptor:   
+                          Usage Page    (Generic Desktop) 
+                          Usage (Mouse)    
+                              Collection (Application)    
+                                ReportID................    (3)  
+                                Usage (Pointer)    
+                                    Collection (Physical)    
+                                      Usage Page    (Button) 
+                                      Usage Minimum...........    (1)  
+                                      Usage Maximum...........    (8)  
+                                      Logical Minimum.........    (0)  
+                                      Logical Maximum.........    (1)  
+                                      Report Count............    (8)  
+                                      Report Size.............    (1)  
+                                      Input...................   (Data, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Bitfield) 
+                                      Usage Page    (Generic Desktop) 
+                                      Usage (X)    
+                                      Usage (Y)    
+                                      Logical Minimum.........    (-127)  
+                                      Logical Maximum.........    (127)  
+                                      Report Size.............    (8)  
+                                      Report Count............    (2)  
+                                      Input...................   (Data, Variable, Relative, No Wrap, Linear, Preferred State, No Null Position, Bitfield) 
+                                      Usage (Wheel)    
+                                      Logical Minimum.........    (-127)  
+                                      Logical Maximum.........    (127)  
+                                      Report Size.............    (8)  
+                                      Report Count............    (1)  
+                                      Input...................   (Data, Variable, Relative, No Wrap, Linear, Preferred State, No Null Position, Bitfield) 
+                                    End Collection     
+                              End Collection     
+                          Usage Page    (Vendor defined 144) 
+                          Usage 1 (0x1)    
+                              Collection (Application)    
+                                Usage 3 (0x3)    
+                                ReportID................    (85)  
+                                Logical Minimum.........    (0)  
+                                Logical Maximum.........    (255)  
+                                Report Size.............    (8)  
+                                Report Count............    (63)  
+                                Input...................   (Data, Variable, Absolute, No Wrap, Linear, Preferred State, No Null Position, Buffered bytes) 
+                                Usage 4 (0x4)    
+                                Logical Minimum.........    (0)  
+                                Logical Maximum.........    (1)  
+                                Report Size.............    (8)  
+                                Report Count............    (63)  
+                                Output..................   (Constant, Array, Absolute, No Wrap, Linear, Preferred State, No Null Position, Nonvolatile, Bitfield) 
+                              End Collection     
+            Endpoint 0x81 - Interrupt Input   
+                Address:   0x81  (IN)
+                Attributes:   0x03  (Interrupt no synchronization data endpoint)
+                Max Packet Size:   64
+                Polling Interval:   1 ms
+            Endpoint 0x01 - Interrupt Output   
+                Address:   0x01  (OUT)
+                Attributes:   0x03  (Interrupt no synchronization data endpoint)
+                Max Packet Size:   64
+                Polling Interval:   1 ms

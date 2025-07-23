@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Control your computer mouse remotely from any device">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>reMouse - Remote Mouse Control</title>
+    <link rel="stylesheet" href="/style.css">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+</head>
+<body>
+    <div class="container">
+        <!-- Navigation Bar -->
+        <nav class="nav-bar">
+            <div class="nav-content">
+                <div class="nav-brand">
+                    <svg class="logo" width="24" height="24" viewBox="0 0 32 32" fill="none">
+                        <path d="M16 4C10.4772 4 6 8.47715 6 14V18C6 23.5228 10.4772 28 16 28C21.5228 28 26 23.5228 26 18V14C26 8.47715 21.5228 4 16 4Z" stroke="currentColor" stroke-width="2"/>
+                        <path d="M16 4V14" stroke="currentColor" stroke-width="2"/>
+                        <circle cx="16" cy="11" r="2" fill="currentColor"/>
+                    </svg>
+                    <span class="nav-title">reMouse</span>
+                </div>
+                
+                <div class="nav-menu-toggle" id="navMenuToggle">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                
+                <ul class="nav-menu" id="navMenu">
+                    <li class="nav-item">
+                        <a href="#mouse-control" class="nav-link active" data-page="mouse-control">Mouse Control</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#mouse-jiggler" class="nav-link" data-page="mouse-jiggler">Mouse Jiggler</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Connection Status -->
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-indicator"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+
+        <!-- Page Content -->
+        <main class="main-content">
+            <!-- Mouse Control Page -->
+            <section class="page-content active" id="mouse-control-page">
+                <div class="page-header">
+                    <h1 class="page-title">Mouse Control</h1>
+                </div>
+                
+                <div class="control-panel">
+                    <div class="toggle-control">
+                        <label class="toggle-label" for="enableToggle">
+                            <span>Mouse Control</span>
+                            <input type="checkbox" id="enableToggle" class="toggle-input" checked>
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+
+                    <div class="touchpad-container">
+                        <div class="touchpad" id="touchpad" aria-label="Mouse touchpad">
+                            <div class="touchpad-hint" id="touchpadHint">Tap twice for click<br>Tap twice + hold to drag</div>
+                        </div>
+                        <div class="scroll-area" id="scrollArea" aria-label="Scroll area">
+                            <svg class="scroll-icon" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path d="M12 5V19M12 5L8 9M12 5L16 9M12 19L8 15M12 19L16 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button class="mouse-button" id="leftClick" aria-label="Left click">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="6" y="4" width="12" height="16" rx="6" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 4V10" stroke="currentColor" stroke-width="2"/>
+                                <rect x="7" y="5" width="5" height="6" rx="2" fill="currentColor" opacity="0.5"/>
+                            </svg>
+                            <span>Left Click</span>
+                        </button>
+                        <button class="mouse-button" id="rightClick" aria-label="Right click">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <rect x="6" y="4" width="12" height="16" rx="6" stroke="currentColor" stroke-width="2"/>
+                                <path d="M12 4V10" stroke="currentColor" stroke-width="2"/>
+                                <rect x="12" y="5" width="5" height="6" rx="2" fill="currentColor" opacity="0.5"/>
+                            </svg>
+                            <span>Right Click</span>
+                        </button>
+                    </div>
+
+                    <div class="settings-section">
+                        <div class="sensitivity-control">
+                            <label for="sensitivitySlider" class="setting-label">
+                                <span>Sensitivity</span>
+                                <span class="sensitivity-value" id="sensitivityValue">1.0×</span>
+                            </label>
+                            <input type="range" 
+                                   id="sensitivitySlider" 
+                                   class="sensitivity-slider" 
+                                   min="0.1" 
+                                   max="4" 
+                                   step="0.1" 
+                                   value="1"
+                                   aria-label="Sensitivity slider">
+                            <div class="slider-labels">
+                                <span>Slow</span>
+                                <span>Normal</span>
+                                <span>Fast</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Mouse Jiggler Page -->
+            <section class="page-content" id="mouse-jiggler-page">
+                <div class="page-header">
+                    <h1 class="page-title">Mouse Jiggler</h1>
+                </div>
+                
+                <div class="jiggler-panel">
+                    <div class="toggle-control">
+                        <label class="toggle-label" for="jigglerToggle">
+                            <span>Mouse Jiggler</span>
+                            <input type="checkbox" id="jigglerToggle" class="toggle-input">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+
+                    <div class="jiggler-settings">
+                        <div class="setting-group">
+                            <label for="intervalSlider" class="setting-label">
+                                <span>Interval</span>
+                                <span class="setting-value" id="intervalValue">5s</span>
+                            </label>
+                            <input type="range" 
+                                   id="intervalSlider" 
+                                   class="setting-slider" 
+                                   min="1" 
+                                   max="60" 
+                                   step="1" 
+                                   value="5"
+                                   aria-label="Interval slider">
+                            <div class="slider-labels">
+                                <span>1s</span>
+                                <span>30s</span>
+                                <span>60s</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label for="speedSlider" class="setting-label">
+                                <span>Speed</span>
+                                <span class="setting-value" id="speedValue">Normal</span>
+                            </label>
+                            <input type="range" 
+                                   id="speedSlider" 
+                                   class="setting-slider" 
+                                   min="1" 
+                                   max="10" 
+                                   step="1" 
+                                   value="5"
+                                   aria-label="Speed slider">
+                            <div class="slider-labels">
+                                <span>Slow</span>
+                                <span>Normal</span>
+                                <span>Fast</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label for="rangeSlider" class="setting-label">
+                                <span>Range</span>
+                                <span class="setting-value" id="rangeValue">50px</span>
+                            </label>
+                            <input type="range" 
+                                   id="rangeSlider" 
+                                   class="setting-slider" 
+                                   min="10" 
+                                   max="200" 
+                                   step="10" 
+                                   value="50"
+                                   aria-label="Range slider">
+                            <div class="slider-labels">
+                                <span>10px</span>
+                                <span>100px</span>
+                                <span>200px</span>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label for="patternSelect" class="setting-label">
+                                <span>Pattern</span>
+                            </label>
+                            <select id="patternSelect" class="setting-select" aria-label="Pattern selection">
+                                <option value="circle">Circle</option>
+                                <option value="figure8">Figure 8</option>
+                                <option value="spiral">Spiral</option>
+                                <option value="square">Square</option>
+                                <option value="triangle">Triangle</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="jiggler-preview">
+                        <div class="preview-container" id="previewContainer">
+                            <div class="preview-cursor" id="previewCursor"></div>
+                        </div>
+                        <div class="preview-label">Movement Preview</div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>Connected to <span id="deviceName">ESP32-S2</span></p>
+        </footer>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html> 

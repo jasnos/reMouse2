@@ -1,0 +1,48 @@
+{
+  "name": "reMouse - Remote Mouse Controller",
+  "short_name": "reMouse",
+    "description": "Control your computer mouse remotely from any device with mouse jiggler functionality",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#667eea",
+  "background_color": "#0a0a0a",
+    "orientation": "portrait-primary",
+    "scope": "/",
+    "lang": "en",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+            "purpose": "any maskable"
+    }
+  ],
+    "categories": ["utilities", "productivity"],
+    "screenshots": [],
+  "shortcuts": [
+    {
+            "name": "Mouse Control",
+            "short_name": "Control",
+            "description": "Open mouse control page",
+            "url": "/#mouse-control",
+      "icons": [
+        {
+                    "src": "/favicon.svg",
+                    "sizes": "96x96"
+                }
+            ]
+        },
+        {
+            "name": "Mouse Jiggler",
+            "short_name": "Jiggler",
+            "description": "Open mouse jiggler page",
+            "url": "/#mouse-jiggler",
+            "icons": [
+                {
+                    "src": "/favicon.svg",
+                    "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+} 
