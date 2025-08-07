@@ -368,7 +368,10 @@ class RemoteMouseApp {
 
     
     generateCirclePattern(range, speed) {
-        const steps = Math.max(20, speed * 4);
+        // Calculate steps based on range: more range = more steps for smooth movement
+        // Base: 1 step per 2 pixels of range, minimum 30 steps
+        const steps = Math.max(30, range / 2);
+        // Speed affects step size, not number of steps
         const movements = [];
         const radius = range / 2;
         
@@ -383,7 +386,10 @@ class RemoteMouseApp {
     }
     
     generateFigure8Pattern(range, speed) {
-        const steps = Math.max(30, speed * 6);
+        // Calculate steps based on range: more range = more steps for smooth movement
+        // Base: 1 step per 1.5 pixels of range, minimum 40 steps
+        const steps = Math.max(40, range * 2 / 3);
+        // Speed affects step size, not number of steps
         const movements = [];
         const radius = range / 3;
         
@@ -398,7 +404,10 @@ class RemoteMouseApp {
     }
     
     generateSpiralPattern(range, speed) {
-        const steps = Math.max(40, speed * 8);
+        // Calculate steps based on range: more range = more steps for smooth movement
+        // Base: 1 step per 1 pixel of range, minimum 50 steps
+        const steps = Math.max(50, range);
+        // Speed affects step size, not number of steps
         const movements = [];
         const maxRadius = range / 2;
         
@@ -414,13 +423,17 @@ class RemoteMouseApp {
     }
     
     generateSquarePattern(range, speed) {
-        const steps = Math.max(16, speed * 3);
+        // Calculate steps based on range: more range = more steps for smooth movement
+        // Base: 1 step per 2 pixels of range, minimum 25 steps
+        const steps = Math.max(25, range / 2);
+        // Speed affects step size, not number of steps
         const movements = [];
         const size = range / 2;
         const stepsPerSide = Math.floor(steps / 4);
         
         // Top side
         for (let i = 0; i < stepsPerSide; i++) {
+            const t = i / stepsPerSide;
             const x = -size + (i / stepsPerSide) * size * 2;
             const y = -size;
             movements.push({ x: Math.round(x), y: Math.round(y) });
@@ -428,6 +441,7 @@ class RemoteMouseApp {
         
         // Right side
         for (let i = 0; i < stepsPerSide; i++) {
+            const t = i / stepsPerSide;
             const x = size;
             const y = -size + (i / stepsPerSide) * size * 2;
             movements.push({ x: Math.round(x), y: Math.round(y) });
@@ -435,6 +449,7 @@ class RemoteMouseApp {
         
         // Bottom side
         for (let i = 0; i < stepsPerSide; i++) {
+            const t = i / stepsPerSide;
             const x = size - (i / stepsPerSide) * size * 2;
             const y = size;
             movements.push({ x: Math.round(x), y: Math.round(y) });
@@ -442,6 +457,7 @@ class RemoteMouseApp {
         
         // Left side
         for (let i = 0; i < stepsPerSide; i++) {
+            const t = i / stepsPerSide;
             const x = -size;
             const y = size - (i / stepsPerSide) * size * 2;
             movements.push({ x: Math.round(x), y: Math.round(y) });
@@ -451,7 +467,10 @@ class RemoteMouseApp {
     }
     
     generateTrianglePattern(range, speed) {
-        const steps = Math.max(24, speed * 5);
+        // Calculate steps based on range: more range = more steps for smooth movement
+        // Base: 1 step per 2 pixels of range, minimum 30 steps
+        const steps = Math.max(30, range / 2);
+        // Speed affects step size, not number of steps
         const movements = [];
         const size = range / 2;
         const stepsPerSide = Math.floor(steps / 3);
@@ -479,6 +498,44 @@ class RemoteMouseApp {
         return movements;
     }
     
+    generateWanderPattern(range, speed) {
+        // Generates a long random walk path that smoothly changes direction.
+        // Calculate steps based on range: more range = more steps for smooth movement
+        // Base: 1 step per 1 pixel of range, minimum 200 steps
+        const steps = Math.max(200, range);
+        const movements = [];
+        let x = 0;
+        let y = 0;
+        // Initial direction
+        let angle = Math.random() * Math.PI * 2;
+        // Step length scales with range and speed
+        const stepLength = Math.max(1, range / 40) * (speed / 5);
+
+        for (let i = 0; i < steps; i++) {
+            // Randomly change angle a little each step to create a wandering effect
+            angle += (Math.random() - 0.5) * Math.PI / 3; // turn up to ±60°
+
+            // Move in the current direction
+            x += Math.cos(angle) * stepLength;
+            y += Math.sin(angle) * stepLength;
+
+            // Keep walk roughly within range by reflecting direction when we get too far
+            const distance = Math.sqrt(x * x + y * y);
+            const maxRadius = range / 2;
+            if (distance > maxRadius) {
+                // Reflect direction back towards center
+                const reflectAngle = Math.atan2(y, x) + Math.PI; // back towards origin
+                angle = reflectAngle + (Math.random() - 0.5) * Math.PI / 4; // add some randomness
+                x = Math.cos(angle) * maxRadius;
+                y = Math.sin(angle) * maxRadius;
+            }
+
+            movements.push({ x: Math.round(x), y: Math.round(y) });
+        }
+
+        return movements;
+    }
+    
     // Preview Animation
     startPreviewAnimation() {
         if (this.currentPage === 'mouse-jiggler') {
@@ -488,7 +545,7 @@ class RemoteMouseApp {
     
     stopPreviewAnimation() {
         if (this.previewAnimation) {
-            cancelAnimationFrame(this.previewAnimation);
+            clearTimeout(this.previewAnimation);
             this.previewAnimation = null;
         }
     }
@@ -519,6 +576,9 @@ class RemoteMouseApp {
                 break;
             case 'triangle':
                 movements = this.generateTrianglePattern(range, speed);
+                break;
+            case 'wander':
+                movements = this.generateWanderPattern(range, speed);
                 break;
         }
         

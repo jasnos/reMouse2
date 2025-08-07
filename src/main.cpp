@@ -6,7 +6,8 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 #include "USB.h"
-#include "USBHIDMouse.h"
+#include "custom_hid_mouse.h"
+#include <stdlib.h>
 
 // Fix for Serial not being defined in some configurations
 #if !defined(Serial) && defined(Serial0)
@@ -48,6 +49,14 @@ bool jigglerActive = false;
 // JSON buffer size
 const size_t JSON_BUFFER_SIZE = 1024;
 
+// Forward declarations for jiggler movement functions
+std::vector<std::pair<int, int>> generateCirclePattern(int range, int speed);
+std::vector<std::pair<int, int>> generateFigure8Pattern(int range, int speed);
+std::vector<std::pair<int, int>> generateSpiralPattern(int range, int speed);
+std::vector<std::pair<int, int>> generateSquarePattern(int range, int speed);
+std::vector<std::pair<int, int>> generateTrianglePattern(int range, int speed);
+std::vector<std::pair<int, int>> generateWanderPattern(int range, int speed);
+
 // Initialize LittleFS
 void initFileSystem() {
     if (!LittleFS.begin(true)) {
@@ -87,7 +96,10 @@ void saveSettings() {
 // Generate jiggler movement patterns (returns relative movements, not absolute positions)
 std::vector<std::pair<int, int>> generateCirclePattern(int range, int speed) {
     std::vector<std::pair<int, int>> movements;
-    int steps = max(20, speed * 4);
+    // Calculate steps based on range: more range = more steps for smooth movement
+    // Base: 1 step per 2 pixels of range, minimum 30 steps
+    int steps = max(30, range / 2);
+    // Speed affects step size, not number of steps
     int radius = range / 2;
     
     // Generate absolute positions first
@@ -111,7 +123,10 @@ std::vector<std::pair<int, int>> generateCirclePattern(int range, int speed) {
 
 std::vector<std::pair<int, int>> generateFigure8Pattern(int range, int speed) {
     std::vector<std::pair<int, int>> movements;
-    int steps = max(30, speed * 6);
+    // Calculate steps based on range: more range = more steps for smooth movement
+    // Base: 1 step per 1.5 pixels of range, minimum 40 steps
+    int steps = max(40, range * 2 / 3);
+    // Speed affects step size, not number of steps
     int radius = range / 3;
     
     // Generate absolute positions first
@@ -135,7 +150,10 @@ std::vector<std::pair<int, int>> generateFigure8Pattern(int range, int speed) {
 
 std::vector<std::pair<int, int>> generateSpiralPattern(int range, int speed) {
     std::vector<std::pair<int, int>> movements;
-    int steps = max(40, speed * 8);
+    // Calculate steps based on range: more range = more steps for smooth movement
+    // Base: 1 step per 1 pixel of range, minimum 50 steps
+    int steps = max(50, range);
+    // Speed affects step size, not number of steps
     int maxRadius = range / 2;
     
     // Generate absolute positions first
@@ -160,7 +178,10 @@ std::vector<std::pair<int, int>> generateSpiralPattern(int range, int speed) {
 
 std::vector<std::pair<int, int>> generateSquarePattern(int range, int speed) {
     std::vector<std::pair<int, int>> movements;
-    int steps = max(16, speed * 3);
+    // Calculate steps based on range: more range = more steps for smooth movement
+    // Base: 1 step per 2 pixels of range, minimum 25 steps
+    int steps = max(25, range / 2);
+    // Speed affects step size, not number of steps
     int size = range / 2;
     int stepsPerSide = steps / 4;
     
@@ -210,7 +231,10 @@ std::vector<std::pair<int, int>> generateSquarePattern(int range, int speed) {
 
 std::vector<std::pair<int, int>> generateTrianglePattern(int range, int speed) {
     std::vector<std::pair<int, int>> movements;
-    int steps = max(24, speed * 5);
+    // Calculate steps based on range: more range = more steps for smooth movement
+    // Base: 1 step per 2 pixels of range, minimum 30 steps
+    int steps = max(30, range / 2);
+    // Speed affects step size, not number of steps
     int size = range / 2;
     int stepsPerSide = steps / 3;
     
@@ -252,6 +276,57 @@ std::vector<std::pair<int, int>> generateTrianglePattern(int range, int speed) {
     return movements;
 }
 
+// Generate Random Wander pattern
+std::vector<std::pair<int, int>> generateWanderPattern(int range, int speed) {
+    std::vector<std::pair<int, int>> movements;
+
+    // Calculate steps based on range: more range = more steps for smooth movement
+    // Base: 1 step per 1 pixel of range, minimum 200 steps
+    const int steps = max(200, range);
+    const float stepLength = max(1.0f, range / 40.0f) * (speed / 5.0f);
+    const float maxRadius = range / 2.0f;
+
+    // Store absolute positions to later convert to relative movements
+    std::vector<std::pair<float, float>> positions;
+    positions.reserve(steps + 1);
+
+    float x = 0.0f;
+    float y = 0.0f;
+    float angle = random(0, 6283) / 1000.0f;  // Random initial angle 0-~6.283 rad
+
+    positions.push_back({x, y});
+
+    for (int i = 0; i < steps; ++i) {
+        // Smooth random turn up to ±60 degrees
+        float deltaAngle = (random(-3141, 3141) / 1000.0f) * (PI / 3.0f); // ±60° in radians scaled by random value [-3.141,3.141]
+        angle += deltaAngle;
+
+        // Step in current direction
+        x += cos(angle) * stepLength;
+        y += sin(angle) * stepLength;
+
+        // If too far, reflect towards origin with slight randomization
+        float distance = sqrt(x * x + y * y);
+        if (distance > maxRadius) {
+            float reflectAngle = atan2(y, x) + PI; // back towards origin
+            angle = reflectAngle + (random(-785, 785) / 1000.0f); // ±45° random
+            x = cos(angle) * maxRadius;
+            y = sin(angle) * maxRadius;
+        }
+
+        positions.push_back({x, y});
+    }
+
+    // Convert absolute positions to relative movements
+    for (size_t i = 1; i < positions.size(); ++i) {
+        int deltaX = round(positions[i].first - positions[i - 1].first);
+        int deltaY = round(positions[i].second - positions[i - 1].second);
+        movements.push_back({deltaX, deltaY});
+    }
+
+    return movements;
+}
+
 // Perform jiggler movement
 void performJigglerMovement() {
     // Jiggler should operate independently of mouse control.
@@ -272,6 +347,8 @@ void performJigglerMovement() {
             currentJigglerMovements = generateSquarePattern(jigglerRange, jigglerSpeed);
         } else if (jigglerPattern == "triangle") {
             currentJigglerMovements = generateTrianglePattern(jigglerRange, jigglerSpeed);
+        } else if (jigglerPattern == "wander") {
+            currentJigglerMovements = generateWanderPattern(jigglerRange, jigglerSpeed);
         }
         
         currentJigglerStep = 0;
@@ -281,8 +358,10 @@ void performJigglerMovement() {
     
     // Execute movement step with timing based on speed
     if (jigglerActive) {
-        // Calculate delay between steps based on speed (faster speed = shorter delay)
-        int stepDelay = map(jigglerSpeed, 1, 10, 100, 10); // 100ms to 10ms
+        // Calculate delay between steps for natural human-like movement
+        // Speed 1-10 maps to 50ms-5ms delay (faster speed = shorter delay)
+        // This creates consistent movement speed regardless of range
+        int stepDelay = map(jigglerSpeed, 1, 10, 50, 5);
         static unsigned long lastStepTime = 0;
         
         if (currentTime - lastStepTime >= stepDelay) {
