@@ -2,7 +2,7 @@
 class RemoteMouseApp {
     constructor() {
         this.ws = null;
-        this.mouseEnabled = true;
+        this.mouseEnabled = false;  // Start disabled by default
         this.touchActive = false;
         this.scrollActive = false;
         this.lastTouchX = 0;
@@ -32,7 +32,9 @@ class RemoteMouseApp {
         };
         this.previewAnimation = null;
         this.countdownInterval = null;
+        this.syncInterval = null;
         this.countdownValue = 0;
+        this.isMoving = false;
         
         // Constants
         this.DOUBLE_TAP_DELAY = 300;
@@ -123,6 +125,13 @@ class RemoteMouseApp {
         clearTimeout(this.reconnectTimer);
         this.sendMessage({ type: 'getSettings' });
         this.sendMessage({ type: 'getJigglerSettings' });
+        
+        // Request countdown sync if jiggler is enabled
+        if (this.jigglerEnabled) {
+            setTimeout(() => {
+                this.sendMessage({ type: 'getJigglerCountdown' });
+            }, 100);
+        }
     }
     
     handleWebSocketClose() {
@@ -147,10 +156,43 @@ class RemoteMouseApp {
             } else if (data.type === 'jigglerStatus') {
                 this.jigglerEnabled = data.enabled;
                 this.showFeedback(`Jiggler ${data.enabled ? 'enabled' : 'disabled'}`);
+                // Sync countdown when status changes
+                if (data.enabled && data.countdown !== undefined) {
+                    this.syncCountdown(data.countdown);
+                }
             } else if (data.type === 'jigglerSettingsUpdated') {
                 this.jigglerSettings = data.settings;
                 this.updateJigglerUI();
                 this.showFeedback('Jiggler settings updated');
+            } else if (data.type === 'jigglerMovementStart') {
+                // Movement is starting, pause countdown
+                console.log('Jiggler movement started');
+                this.isMoving = true;
+                if (this.jigglerEnabled) {
+                    this.pauseCountdown();
+                }
+            } else if (data.type === 'jigglerMovementEnd') {
+                // Movement ended, resume and reset countdown
+                console.log('Jiggler movement ended');
+                this.isMoving = false;
+                if (this.jigglerEnabled) {
+                    this.resetCountdownToFull();
+                }
+            } else if (data.type === 'jigglerCountdown') {
+                // Sync countdown with backend
+                if (this.jigglerEnabled && data.remaining !== undefined) {
+                    // Update moving state from backend
+                    if (data.isMoving !== undefined) {
+                        this.isMoving = data.isMoving;
+                    }
+                    
+                    // Only sync countdown if not moving
+                    if (!this.isMoving && data.remaining >= 0) {
+                        this.syncCountdown(data.remaining);
+                    }
+                    
+                    this.updateCountdownDisplay();
+                }
             }
         } catch (error) {
             console.error('Error parsing WebSocket message:', error);
@@ -308,6 +350,8 @@ class RemoteMouseApp {
         
         if (this.jigglerEnabled) {
             this.startCountdown();
+            // Request countdown sync from backend
+            this.sendMessage({ type: 'getJigglerCountdown' });
         } else {
             this.stopCountdown();
         }
@@ -400,13 +444,25 @@ class RemoteMouseApp {
         this.elements.countdownTimer.style.display = 'block';
         this.updateCountdownDisplay();
         
+        // Main countdown interval
         this.countdownInterval = setInterval(() => {
-            this.countdownValue--;
-            if (this.countdownValue <= 0) {
-                this.countdownValue = this.jigglerSettings.interval;
+            // Only count down if not moving
+            if (!this.isMoving) {
+                this.countdownValue--;
+                if (this.countdownValue <= 0) {
+                    // Don't auto-reset here, wait for backend confirmation
+                    this.countdownValue = 0;
+                }
+                this.updateCountdownDisplay();
             }
-            this.updateCountdownDisplay();
         }, 1000);
+        
+        // Periodic sync with backend every 5 seconds
+        this.syncInterval = setInterval(() => {
+            if (this.jigglerEnabled && !this.isMoving) {
+                this.sendMessage({ type: 'getJigglerCountdown' });
+            }
+        }, 5000);
     }
     
     stopCountdown() {
@@ -414,7 +470,16 @@ class RemoteMouseApp {
             clearInterval(this.countdownInterval);
             this.countdownInterval = null;
         }
+        if (this.syncInterval) {
+            clearInterval(this.syncInterval);
+            this.syncInterval = null;
+        }
         this.elements.countdownTimer.style.display = 'none';
+    }
+    
+    pauseCountdown() {
+        // Update display to show paused state
+        this.updateCountdownDisplay();
     }
     
     resetCountdown() {
@@ -423,9 +488,43 @@ class RemoteMouseApp {
         }
     }
     
+    resetCountdownToFull() {
+        // Reset countdown to full interval when movement occurs
+        this.countdownValue = this.jigglerSettings.interval;
+        this.updateCountdownDisplay();
+        
+        // Restart the countdown timer
+        if (this.jigglerEnabled) {
+            this.stopCountdown();
+            this.startCountdown();
+        }
+    }
+    
+    syncCountdown(remainingSeconds) {
+        // Sync countdown with backend value
+        if (remainingSeconds !== undefined && remainingSeconds >= 0) {
+            this.countdownValue = Math.round(remainingSeconds);
+            this.updateCountdownDisplay();
+            
+            // If countdown is not running but should be, start it
+            if (!this.countdownInterval && this.jigglerEnabled) {
+                this.startCountdown();
+            }
+        }
+    }
+    
     updateCountdownDisplay() {
         if (this.elements.countdownValueDisplay) {
-            this.elements.countdownValueDisplay.textContent = this.formatTime(this.countdownValue);
+            if (this.isMoving) {
+                this.elements.countdownValueDisplay.textContent = 'Moving...';
+                this.elements.countdownTimer.classList.add('moving');
+            } else if (this.countdownValue <= 0) {
+                this.elements.countdownValueDisplay.textContent = 'Starting...';
+                this.elements.countdownTimer.classList.remove('moving');
+            } else {
+                this.elements.countdownValueDisplay.textContent = this.formatTime(this.countdownValue);
+                this.elements.countdownTimer.classList.remove('moving');
+            }
         }
     }
     

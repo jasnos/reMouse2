@@ -30,7 +30,7 @@ USBHIDMouse Mouse;
 Preferences preferences;
 
 // Mouse control variables
-bool mouseEnabled = true;
+bool mouseEnabled = false;  // Always start disabled
 float sensitivity = 1.0;
 bool leftButtonPressed = false;
 bool rightButtonPressed = false;
@@ -69,10 +69,11 @@ void initFileSystem() {
 
 // Load settings from preferences
 void loadSettings() {
-    mouseEnabled = preferences.getBool("enabled", true);
+    // Mouse control always starts disabled on boot/restart
+    mouseEnabled = false;
     sensitivity = preferences.getFloat("sensitivity", 1.0);
     
-    // Load jiggler settings
+    // Load jiggler settings - this should persist across restarts
     jigglerEnabled = preferences.getBool("jiggler_enabled", false);
     jigglerInterval = preferences.getInt("jiggler_interval", 5);
     jigglerSpeed = preferences.getInt("jiggler_speed", 5);
@@ -82,10 +83,10 @@ void loadSettings() {
 
 // Save settings to preferences
 void saveSettings() {
-    preferences.putBool("enabled", mouseEnabled);
+    // Don't save mouse control enabled state - it should always start disabled
     preferences.putFloat("sensitivity", sensitivity);
     
-    // Save jiggler settings
+    // Save jiggler settings - these should persist
     preferences.putBool("jiggler_enabled", jigglerEnabled);
     preferences.putInt("jiggler_interval", jigglerInterval);
     preferences.putInt("jiggler_speed", jigglerSpeed);
@@ -327,6 +328,11 @@ std::vector<std::pair<int, int>> generateWanderPattern(int range, int speed) {
     return movements;
 }
 
+// Broadcast message to all connected WebSocket clients
+void broadcastMessage(const String& message) {
+    ws.textAll(message);
+}
+
 // Perform jiggler movement
 void performJigglerMovement() {
     // Jiggler should operate independently of mouse control.
@@ -353,7 +359,13 @@ void performJigglerMovement() {
         
         currentJigglerStep = 0;
         jigglerActive = true;
-        lastJigglerTime = currentTime;
+        
+        // Notify all clients that movement is starting
+        StaticJsonDocument<JSON_BUFFER_SIZE> notification;
+        notification["type"] = "jigglerMovementStart";
+        String notificationStr;
+        serializeJson(notification, notificationStr);
+        broadcastMessage(notificationStr);
     }
     
     // Execute movement step with timing based on speed
@@ -376,7 +388,14 @@ void performJigglerMovement() {
                 // Pattern complete, reset for next cycle
                 jigglerActive = false;
                 currentJigglerStep = 0;
-                lastJigglerTime = currentTime;
+                lastJigglerTime = currentTime;  // Reset timer after movement ends
+                
+                // Notify all clients that movement has ended
+                StaticJsonDocument<JSON_BUFFER_SIZE> endNotification;
+                endNotification["type"] = "jigglerMovementEnd";
+                String endNotificationStr;
+                serializeJson(endNotification, endNotificationStr);
+                broadcastMessage(endNotificationStr);
             }
         }
     }
@@ -495,12 +514,20 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 if (!jigglerEnabled) {
                     jigglerActive = false;
                     currentJigglerStep = 0;
+                } else {
+                    // Reset timer when enabling
+                    lastJigglerTime = millis();
                 }
                 
-                // Send confirmation
+                // Send confirmation with countdown
                 StaticJsonDocument<JSON_BUFFER_SIZE> response;
                 response["type"] = "jigglerStatus";
                 response["enabled"] = jigglerEnabled;
+                
+                // Include countdown for sync
+                if (jigglerEnabled) {
+                    response["countdown"] = jigglerInterval;
+                }
                 
                 String responseStr;
                 serializeJson(response, responseStr);
@@ -541,6 +568,32 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 settings["speed"] = jigglerSpeed;
                 settings["range"] = jigglerRange;
                 settings["pattern"] = jigglerPattern;
+                
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
+            } else if (strcmp(type, "getJigglerCountdown") == 0) {
+                // Send current countdown status
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "jigglerCountdown";
+                
+                if (jigglerEnabled) {
+                    if (jigglerActive) {
+                        // If currently moving, countdown should be paused
+                        response["remaining"] = -1; // Signal that it's moving
+                        response["isMoving"] = true;
+                    } else {
+                        unsigned long currentTime = millis();
+                        unsigned long timeSinceLastMovement = (currentTime - lastJigglerTime) / 1000;
+                        int remaining = jigglerInterval - timeSinceLastMovement;
+                        if (remaining < 0) remaining = 0;
+                        response["remaining"] = remaining;
+                        response["isMoving"] = false;
+                    }
+                } else {
+                    response["remaining"] = jigglerInterval;
+                    response["isMoving"] = false;
+                }
                 
                 String responseStr;
                 serializeJson(response, responseStr);

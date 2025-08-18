@@ -563,6 +563,11 @@ body {
     transition: all var(--transition-speed);
 }
 
+.countdown-timer.moving {
+    background: linear-gradient(135deg, var(--bg-secondary), rgba(102, 126, 234, 0.1));
+    border-color: var(--primary-color);
+}
+
 .countdown-label {
     font-size: 14px;
     color: var(--text-secondary);
@@ -575,6 +580,15 @@ body {
     color: var(--primary-color);
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
     text-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+}
+
+.countdown-timer.moving .countdown-value {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
 }
 
 .jiggler-preview {
