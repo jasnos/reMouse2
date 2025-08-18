@@ -136,6 +136,11 @@
                         </label>
                     </div>
 
+                    <div class="countdown-timer" id="countdownTimer" style="display: none;">
+                        <div class="countdown-label">Next movement in:</div>
+                        <div class="countdown-value" id="countdownValue">--</div>
+                    </div>
+
                     <div class="jiggler-settings">
                         <div class="setting-group">
                             <label for="intervalSlider" class="setting-label">
@@ -145,15 +150,15 @@
                             <input type="range" 
                                    id="intervalSlider" 
                                    class="setting-slider" 
-                                   min="1" 
-                                   max="60" 
+                                   min="5" 
+                                   max="600" 
                                    step="1" 
                                    value="5"
                                    aria-label="Interval slider">
                             <div class="slider-labels">
-                                <span>1s</span>
-                                <span>30s</span>
-                                <span>60s</span>
+                                <span>5s</span>
+                                <span>5m</span>
+                                <span>10m</span>
                             </div>
                         </div>
 
@@ -185,15 +190,15 @@
                             <input type="range" 
                                    id="rangeSlider" 
                                    class="setting-slider" 
-                                   min="10" 
-                                   max="400" 
-                                   step="10" 
+                                   min="3" 
+                                   max="500" 
+                                   step="1" 
                                    value="50"
                                    aria-label="Range slider">
                             <div class="slider-labels">
-                                <span>10px</span>
-                                <span>200px</span>
-                                <span>400px</span>
+                                <span>3px</span>
+                                <span>250px</span>
+                                <span>500px</span>
                             </div>
                         </div>
 

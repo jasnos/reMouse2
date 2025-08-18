@@ -549,6 +549,34 @@ body {
     gap: 20px;
 }
 
+/* Countdown Timer */
+.countdown-timer {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    padding: 16px 20px;
+    margin: 16px 0;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all var(--transition-speed);
+}
+
+.countdown-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.countdown-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    text-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
+}
+
 .jiggler-preview {
     display: flex;
     flex-direction: column;

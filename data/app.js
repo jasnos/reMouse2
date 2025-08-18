@@ -31,6 +31,8 @@ class RemoteMouseApp {
             pattern: 'circle'
         };
         this.previewAnimation = null;
+        this.countdownInterval = null;
+        this.countdownValue = 0;
         
         // Constants
         this.DOUBLE_TAP_DELAY = 300;
@@ -68,7 +70,11 @@ class RemoteMouseApp {
             rangeValue: document.getElementById('rangeValue'),
             patternSelect: document.getElementById('patternSelect'),
             previewContainer: document.getElementById('previewContainer'),
-            previewCursor: document.getElementById('previewCursor')
+            previewCursor: document.getElementById('previewCursor'),
+            
+            // Countdown timer elements
+            countdownTimer: document.getElementById('countdownTimer'),
+            countdownValueDisplay: document.getElementById('countdownValue')
         };
         
         this.init();
@@ -299,11 +305,17 @@ class RemoteMouseApp {
         });
         
         this.saveJigglerSettings();
+        
+        if (this.jigglerEnabled) {
+            this.startCountdown();
+        } else {
+            this.stopCountdown();
+        }
     }
     
     handleIntervalChange() {
         this.jigglerSettings.interval = parseInt(this.elements.intervalSlider.value);
-        this.elements.intervalValue.textContent = `${this.jigglerSettings.interval}s`;
+        this.elements.intervalValue.textContent = this.formatTime(this.jigglerSettings.interval);
         
         this.sendMessage({
             type: 'setJigglerSettings',
@@ -315,6 +327,7 @@ class RemoteMouseApp {
         
         this.saveJigglerSettings();
         this.updatePreviewAnimation();
+        this.resetCountdown();
     }
     
     handleSpeedChange() {
@@ -363,6 +376,57 @@ class RemoteMouseApp {
         
         this.saveJigglerSettings();
         this.updatePreviewAnimation();
+    }
+    
+    // Time formatting function
+    formatTime(seconds) {
+        if (seconds < 60) {
+            return `${seconds}s`;
+        } else {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            if (remainingSeconds === 0) {
+                return `${minutes}m`;
+            } else {
+                return `${minutes}m ${remainingSeconds}s`;
+            }
+        }
+    }
+    
+    // Countdown timer functions
+    startCountdown() {
+        this.stopCountdown();
+        this.countdownValue = this.jigglerSettings.interval;
+        this.elements.countdownTimer.style.display = 'block';
+        this.updateCountdownDisplay();
+        
+        this.countdownInterval = setInterval(() => {
+            this.countdownValue--;
+            if (this.countdownValue <= 0) {
+                this.countdownValue = this.jigglerSettings.interval;
+            }
+            this.updateCountdownDisplay();
+        }, 1000);
+    }
+    
+    stopCountdown() {
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+        this.elements.countdownTimer.style.display = 'none';
+    }
+    
+    resetCountdown() {
+        if (this.jigglerEnabled) {
+            this.startCountdown();
+        }
+    }
+    
+    updateCountdownDisplay() {
+        if (this.elements.countdownValueDisplay) {
+            this.elements.countdownValueDisplay.textContent = this.formatTime(this.countdownValue);
+        }
     }
     
 
@@ -638,7 +702,7 @@ class RemoteMouseApp {
     updateJigglerUI() {
         this.elements.jigglerToggle.checked = this.jigglerEnabled;
         this.elements.intervalSlider.value = this.jigglerSettings.interval;
-        this.elements.intervalValue.textContent = `${this.jigglerSettings.interval}s`;
+        this.elements.intervalValue.textContent = this.formatTime(this.jigglerSettings.interval);
         this.elements.speedSlider.value = this.jigglerSettings.speed;
         this.elements.rangeSlider.value = this.jigglerSettings.range;
         this.elements.rangeValue.textContent = `${this.jigglerSettings.range}px`;
@@ -646,6 +710,13 @@ class RemoteMouseApp {
         
         const speedLabels = ['Very Slow', 'Slow', 'Normal', 'Fast', 'Very Fast'];
         this.elements.speedValue.textContent = speedLabels[Math.floor((this.jigglerSettings.speed - 1) / 2)];
+        
+        // Update countdown timer state
+        if (this.jigglerEnabled) {
+            this.startCountdown();
+        } else {
+            this.stopCountdown();
+        }
     }
     
     setupTouchpadEvents() {
