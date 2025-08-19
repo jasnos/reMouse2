@@ -717,4 +717,397 @@ body {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* KeyStroker Panel */
+.keystroker-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.keystroker-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.keystroker-status {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+}
+
+.status-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-icon {
+    padding: 16px;
+    background: var(--bg-tertiary);
+    border-radius: var(--border-radius);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    transition: all var(--transition-speed);
+}
+
+.status-icon svg {
+    color: var(--text-secondary);
+    transition: color var(--transition-speed);
+}
+
+.keystroker-panel .toggle-input:checked ~ .toggle-switch {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+}
+
+.keystroker-panel .toggle-input:checked ~ .toggle-switch::before {
+    transform: translateX(24px);
+}
+
+/* Active state for status icon */
+.keystroker-active .status-icon {
+    border-color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.keystroker-active .status-icon svg {
+    color: var(--primary-color);
+    animation: keystroke-pulse 1s ease-in-out infinite;
+}
+
+@keyframes keystroke-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(0.95);
+    }
+}
+
+.status-label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+/* Key Capture Input Styles */
+.key-capture-container {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.key-capture-input {
+    flex: 1;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+.key-capture-input:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-tertiary);
+}
+
+.key-capture-input.capturing {
+    border-color: var(--primary-color);
+    background: rgba(102, 126, 234, 0.1);
+    animation: pulse-border 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+    0%, 100% {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4);
+    }
+    50% {
+        border-color: var(--primary-dark);
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+}
+
+.clear-key-btn,
+.virtual-keyboard-btn {
+    padding: 12px;
+    background: var(--bg-tertiary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.clear-key-btn:hover,
+.virtual-keyboard-btn:hover {
+    background: var(--bg-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+}
+
+.key-capture-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+    text-align: center;
+    opacity: 0;
+    transition: opacity var(--transition-speed);
+}
+
+.key-capture-hint.visible {
+    opacity: 1;
+}
+
+/* Modal Overlay and Content */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 20px;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    max-width: 800px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color var(--transition-speed);
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Key Preview */
+.key-preview {
+    background: var(--bg-primary);
+    border: 2px solid var(--primary-color);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 24px;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+}
+
+/* Modifier Keys */
+.modifier-keys {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.modifier-key {
+    padding: 12px 20px;
+    background: var(--bg-tertiary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+    min-width: 80px;
+}
+
+.modifier-key:hover {
+    background: var(--bg-primary);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.modifier-key.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* Virtual Keyboard */
+.virtual-keyboard {
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+}
+
+.keyboard-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+    justify-content: center;
+}
+
+.keyboard-row:last-child {
+    margin-bottom: 0;
+}
+
+.vk-key {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    background: var(--bg-primary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.vk-key:hover {
+    background: var(--bg-secondary);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    transform: translateY(-2px);
+}
+
+.vk-key:active {
+    transform: translateY(0);
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.vk-key-wide {
+    min-width: 60px;
+}
+
+.vk-key-spacebar {
+    min-width: 200px;
+}
+
+/* Modal Actions */
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.modal-btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-speed);
+}
+
+.modal-btn-secondary {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+}
+
+.modal-btn-secondary:hover {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.modal-btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.modal-btn-primary:hover {
+    background: var(--primary-dark);
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 600px) {
+    .virtual-keyboard {
+        padding: 12px 8px;
+    }
+    
+    .vk-key {
+        min-width: 28px;
+        height: 32px;
+        font-size: 12px;
+        padding: 0 4px;
+    }
+    
+    .vk-key-wide {
+        min-width: 48px;
+    }
+    
+    .vk-key-spacebar {
+        min-width: 140px;
+    }
+    
+    .keyboard-row {
+        gap: 3px;
+    }
 } 

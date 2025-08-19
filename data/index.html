@@ -40,6 +40,9 @@
                     <li class="nav-item">
                         <a href="#mouse-jiggler" class="nav-link" data-page="mouse-jiggler">Mouse Jiggler</a>
                     </li>
+                    <li class="nav-item">
+                        <a href="#key-stroker" class="nav-link" data-page="key-stroker">KeyStroker</a>
+                    </li>
                 </ul>
             </div>
         </nav>
@@ -217,11 +220,209 @@
                     </div>
                 </div>
             </section>
+
+            <!-- KeyStroker Page -->
+            <section class="page-content" id="key-stroker-page">
+                <div class="keystroker-panel">
+                    <div class="toggle-control">
+                        <label class="toggle-label" for="keystrokerToggle">
+                            <span>KeyStroker</span>
+                            <input type="checkbox" id="keystrokerToggle" class="toggle-input">
+                            <span class="toggle-switch"></span>
+                        </label>
+                    </div>
+
+                    <div class="countdown-timer" id="keystrokerCountdown" style="display: none;">
+                        <div class="countdown-label">Next keypress in:</div>
+                        <div class="countdown-value" id="keystrokerCountdownValue">--</div>
+                    </div>
+
+                    <div class="keystroker-settings">
+                        <div class="setting-group">
+                            <label for="keyCaptureInput" class="setting-label">
+                                <span>Key or Combination</span>
+                            </label>
+                            <div class="key-capture-container">
+                                <input type="text" 
+                                       id="keyCaptureInput" 
+                                       class="key-capture-input" 
+                                       placeholder="Click to set key..." 
+                                       readonly
+                                       value="F12">
+                                <button id="clearKeyBtn" class="clear-key-btn" aria-label="Clear key">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                                <button id="virtualKeyboardBtn" class="virtual-keyboard-btn" aria-label="Open virtual keyboard">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                        <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="key-capture-hint" id="keyCaptureHint">Press any key or combination</div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label for="keystrokerIntervalSlider" class="setting-label">
+                                <span>Interval</span>
+                                <span class="setting-value" id="keystrokerIntervalValue">5s</span>
+                            </label>
+                            <input type="range" 
+                                   id="keystrokerIntervalSlider" 
+                                   class="setting-slider" 
+                                   min="1" 
+                                   max="600" 
+                                   step="1" 
+                                   value="5"
+                                   aria-label="KeyStroker interval slider">
+                            <div class="slider-labels">
+                                <span>1s</span>
+                                <span>5m</span>
+                                <span>10m</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="keystroker-status">
+                        <div class="status-container">
+                            <div class="status-icon" id="keystrokerStatusIcon">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                    <path d="M8 8h8M8 12h8M6 16h12"/>
+                                </svg>
+                            </div>
+                            <div class="status-label" id="keystrokerStatusLabel">Press F12 every 5 seconds</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </main>
 
         <footer class="footer">
             <p>Connected to <span id="deviceName">ESP32-S2</span></p>
         </footer>
+    </div>
+
+    <!-- Virtual Keyboard Modal -->
+    <div class="modal-overlay" id="virtualKeyboardModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Select Key Combination</h3>
+                <button class="modal-close" id="modalCloseBtn" aria-label="Close">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="key-preview" id="keyPreview">Press keys...</div>
+                
+                <div class="modifier-keys">
+                    <button class="modifier-key" data-modifier="ctrl" id="ctrlKey">
+                        <span class="key-label">Ctrl</span>
+                    </button>
+                    <button class="modifier-key" data-modifier="alt" id="altKey">
+                        <span class="key-label">Alt</span>
+                    </button>
+                    <button class="modifier-key" data-modifier="shift" id="shiftKey">
+                        <span class="key-label">Shift</span>
+                    </button>
+                    <button class="modifier-key" data-modifier="meta" id="metaKey">
+                        <span class="key-label">⌘/Win</span>
+                    </button>
+                </div>
+                
+                <div class="virtual-keyboard">
+                    <div class="keyboard-row">
+                        <button class="vk-key" data-key="Escape">Esc</button>
+                        <button class="vk-key" data-key="F1">F1</button>
+                        <button class="vk-key" data-key="F2">F2</button>
+                        <button class="vk-key" data-key="F3">F3</button>
+                        <button class="vk-key" data-key="F4">F4</button>
+                        <button class="vk-key" data-key="F5">F5</button>
+                        <button class="vk-key" data-key="F6">F6</button>
+                        <button class="vk-key" data-key="F7">F7</button>
+                        <button class="vk-key" data-key="F8">F8</button>
+                        <button class="vk-key" data-key="F9">F9</button>
+                        <button class="vk-key" data-key="F10">F10</button>
+                        <button class="vk-key" data-key="F11">F11</button>
+                        <button class="vk-key" data-key="F12">F12</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="vk-key" data-key="`">`</button>
+                        <button class="vk-key" data-key="1">1</button>
+                        <button class="vk-key" data-key="2">2</button>
+                        <button class="vk-key" data-key="3">3</button>
+                        <button class="vk-key" data-key="4">4</button>
+                        <button class="vk-key" data-key="5">5</button>
+                        <button class="vk-key" data-key="6">6</button>
+                        <button class="vk-key" data-key="7">7</button>
+                        <button class="vk-key" data-key="8">8</button>
+                        <button class="vk-key" data-key="9">9</button>
+                        <button class="vk-key" data-key="0">0</button>
+                        <button class="vk-key" data-key="-">-</button>
+                        <button class="vk-key" data-key="=">=</button>
+                        <button class="vk-key vk-key-wide" data-key="Backspace">←</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="vk-key vk-key-wide" data-key="Tab">Tab</button>
+                        <button class="vk-key" data-key="Q">Q</button>
+                        <button class="vk-key" data-key="W">W</button>
+                        <button class="vk-key" data-key="E">E</button>
+                        <button class="vk-key" data-key="R">R</button>
+                        <button class="vk-key" data-key="T">T</button>
+                        <button class="vk-key" data-key="Y">Y</button>
+                        <button class="vk-key" data-key="U">U</button>
+                        <button class="vk-key" data-key="I">I</button>
+                        <button class="vk-key" data-key="O">O</button>
+                        <button class="vk-key" data-key="P">P</button>
+                        <button class="vk-key" data-key="[">[</button>
+                        <button class="vk-key" data-key="]">]</button>
+                        <button class="vk-key" data-key="\">\</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="vk-key vk-key-wide" data-key="CapsLock">Caps</button>
+                        <button class="vk-key" data-key="A">A</button>
+                        <button class="vk-key" data-key="S">S</button>
+                        <button class="vk-key" data-key="D">D</button>
+                        <button class="vk-key" data-key="F">F</button>
+                        <button class="vk-key" data-key="G">G</button>
+                        <button class="vk-key" data-key="H">H</button>
+                        <button class="vk-key" data-key="J">J</button>
+                        <button class="vk-key" data-key="K">K</button>
+                        <button class="vk-key" data-key="L">L</button>
+                        <button class="vk-key" data-key=";">;</button>
+                        <button class="vk-key" data-key="'">'</button>
+                        <button class="vk-key vk-key-wide" data-key="Enter">Enter</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="vk-key vk-key-wide" data-key="Shift">Shift</button>
+                        <button class="vk-key" data-key="Z">Z</button>
+                        <button class="vk-key" data-key="X">X</button>
+                        <button class="vk-key" data-key="C">C</button>
+                        <button class="vk-key" data-key="V">V</button>
+                        <button class="vk-key" data-key="B">B</button>
+                        <button class="vk-key" data-key="N">N</button>
+                        <button class="vk-key" data-key="M">M</button>
+                        <button class="vk-key" data-key=",">,</button>
+                        <button class="vk-key" data-key=".">.</button>
+                        <button class="vk-key" data-key="/">/</button>
+                    </div>
+                    <div class="keyboard-row">
+                        <button class="vk-key vk-key-spacebar" data-key=" ">Space</button>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="modal-btn modal-btn-secondary" id="modalClearBtn">Clear</button>
+                    <button class="modal-btn modal-btn-primary" id="modalApplyBtn">Apply</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="/app.js"></script>

@@ -23,8 +23,9 @@ const char* hostname = "remouse";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-// USB HID Mouse
+// USB HID Mouse and Keyboard
 USBHIDMouse Mouse;
+USBHIDKeyboard Keyboard;
 
 // Preferences for persistent storage
 Preferences preferences;
@@ -45,6 +46,13 @@ unsigned long lastJigglerTime = 0;
 int currentJigglerStep = 0;
 std::vector<std::pair<int, int>> currentJigglerMovements;
 bool jigglerActive = false;
+
+// KeyStroker variables
+bool keystrokerEnabled = false;
+String keystrokerKey = "F12";
+std::vector<String> keystrokerModifiers;
+int keystrokerInterval = 5;
+unsigned long lastKeystrokerTime = 0;
 
 // JSON buffer size
 const size_t JSON_BUFFER_SIZE = 1024;
@@ -79,6 +87,11 @@ void loadSettings() {
     jigglerSpeed = preferences.getInt("jiggler_speed", 5);
     jigglerRange = preferences.getInt("jiggler_range", 50);
     jigglerPattern = preferences.getString("jiggler_pattern", "circle");
+    
+    // Load KeyStroker settings - disabled by default on boot
+    keystrokerEnabled = false;  // Always start disabled for safety
+    keystrokerKey = preferences.getString("keystroker_key", "F12");
+    keystrokerInterval = preferences.getInt("keystroker_interval", 5);
 }
 
 // Save settings to preferences
@@ -92,6 +105,10 @@ void saveSettings() {
     preferences.putInt("jiggler_speed", jigglerSpeed);
     preferences.putInt("jiggler_range", jigglerRange);
     preferences.putString("jiggler_pattern", jigglerPattern);
+    
+    // Save KeyStroker settings - don't save enabled state for safety
+    preferences.putString("keystroker_key", keystrokerKey);
+    preferences.putInt("keystroker_interval", keystrokerInterval);
 }
 
 // Generate jiggler movement patterns (returns relative movements, not absolute positions)
@@ -331,6 +348,36 @@ std::vector<std::pair<int, int>> generateWanderPattern(int range, int speed) {
 // Broadcast message to all connected WebSocket clients
 void broadcastMessage(const String& message) {
     ws.textAll(message);
+}
+
+// Perform keystroker action
+void performKeystrokerAction() {
+    if (!keystrokerEnabled) return;
+    
+    unsigned long currentTime = millis();
+    
+    // Check if enough time has passed for the next keypress
+    if (currentTime - lastKeystrokerTime >= (keystrokerInterval * 1000)) {
+        // Get the HID key code for the selected key
+        uint8_t keyCode = USBHIDKeyboard::getKeyCode(keystrokerKey.c_str());
+        
+        if (keyCode != KEY_NONE) {
+            // Build modifier byte
+            uint8_t modifierByte = 0;
+            if (keystrokerModifiers.size() > 0) {
+                const char* modArray[keystrokerModifiers.size()];
+                for (size_t i = 0; i < keystrokerModifiers.size(); i++) {
+                    modArray[i] = keystrokerModifiers[i].c_str();
+                }
+                modifierByte = USBHIDKeyboard::getModifierByte(modArray, keystrokerModifiers.size());
+            }
+            
+            // Type the key with modifiers (press and release)
+            Keyboard.typeKey(keyCode, modifierByte);
+        }
+        
+        lastKeystrokerTime = currentTime;
+    }
 }
 
 // Perform jiggler movement
@@ -609,6 +656,73 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                         delay(10); // Small delay for smooth movement
                     }
                 }
+            } else if (strcmp(type, "setKeystrokerEnabled") == 0) {
+                keystrokerEnabled = doc["enabled"];
+                saveSettings();
+                
+                if (keystrokerEnabled) {
+                    // Reset timer when enabling
+                    lastKeystrokerTime = millis();
+                }
+                
+                // Send confirmation
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "keystrokerStatus";
+                response["enabled"] = keystrokerEnabled;
+                
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
+            } else if (strcmp(type, "setKeystrokerSettings") == 0) {
+                keystrokerKey = doc["key"].as<String>();
+                keystrokerInterval = doc["interval"];
+                
+                // Parse modifiers array
+                keystrokerModifiers.clear();
+                if (doc.containsKey("modifiers")) {
+                    JsonArray modifiers = doc["modifiers"];
+                    for (JsonVariant mod : modifiers) {
+                        keystrokerModifiers.push_back(mod.as<String>());
+                    }
+                }
+                
+                saveSettings();
+                
+                // Reset timer if active
+                if (keystrokerEnabled) {
+                    lastKeystrokerTime = millis();
+                }
+                
+                // Send confirmation
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "keystrokerSettingsUpdated";
+                JsonObject settings = response.createNestedObject("settings");
+                settings["key"] = keystrokerKey;
+                settings["interval"] = keystrokerInterval;
+                JsonArray modArray = settings.createNestedArray("modifiers");
+                for (const String& mod : keystrokerModifiers) {
+                    modArray.add(mod);
+                }
+                
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
+            } else if (strcmp(type, "getKeystrokerSettings") == 0) {
+                // Send current keystroker settings
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "keystrokerSettings";
+                response["enabled"] = keystrokerEnabled;
+                JsonObject settings = response.createNestedObject("settings");
+                settings["key"] = keystrokerKey;
+                settings["interval"] = keystrokerInterval;
+                JsonArray modArray = settings.createNestedArray("modifiers");
+                for (const String& mod : keystrokerModifiers) {
+                    modArray.add(mod);
+                }
+                
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
             }
         }
     }
@@ -718,8 +832,9 @@ void setup() {
     // Initialize file system
     initFileSystem();
     
-    // Initialize USB HID Mouse
+    // Initialize USB HID Mouse and Keyboard
     Mouse.begin();
+    Keyboard.begin();
     
     // Small delay to ensure USB is ready
     delay(1000);
@@ -754,6 +869,11 @@ void loop() {
     // Run jiggler regardless of mouse control state
     if (jigglerEnabled) {
         performJigglerMovement();
+    }
+    
+    // Handle keystroker functionality
+    if (keystrokerEnabled) {
+        performKeystrokerAction();
     }
     
     // Clean up disconnected WebSocket clients

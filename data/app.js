@@ -36,6 +36,19 @@ class RemoteMouseApp {
         this.countdownValue = 0;
         this.isMoving = false;
         
+        // KeyStroker state
+        this.keystrokerEnabled = false;
+        this.keystrokerSettings = {
+            key: 'F12',
+            modifiers: [],
+            interval: 5
+        };
+        this.keystrokerCountdownInterval = null;
+        this.keystrokerCountdownValue = 0;
+        this.isCapturingKey = false;
+        this.capturedModifiers = new Set();
+        this.virtualKeyboardModifiers = new Set();
+        
         // Constants
         this.DOUBLE_TAP_DELAY = 300;
         this.RECONNECT_DELAY = 3000;
@@ -76,7 +89,27 @@ class RemoteMouseApp {
             
             // Countdown timer elements
             countdownTimer: document.getElementById('countdownTimer'),
-            countdownValueDisplay: document.getElementById('countdownValue')
+            countdownValueDisplay: document.getElementById('countdownValue'),
+            
+            // KeyStroker elements
+            keystrokerToggle: document.getElementById('keystrokerToggle'),
+            keyCaptureInput: document.getElementById('keyCaptureInput'),
+            keyCaptureHint: document.getElementById('keyCaptureHint'),
+            clearKeyBtn: document.getElementById('clearKeyBtn'),
+            virtualKeyboardBtn: document.getElementById('virtualKeyboardBtn'),
+            keystrokerIntervalSlider: document.getElementById('keystrokerIntervalSlider'),
+            keystrokerIntervalValue: document.getElementById('keystrokerIntervalValue'),
+            keystrokerCountdown: document.getElementById('keystrokerCountdown'),
+            keystrokerCountdownValue: document.getElementById('keystrokerCountdownValue'),
+            keystrokerStatusIcon: document.getElementById('keystrokerStatusIcon'),
+            keystrokerStatusLabel: document.getElementById('keystrokerStatusLabel'),
+            
+            // Virtual keyboard modal elements
+            virtualKeyboardModal: document.getElementById('virtualKeyboardModal'),
+            modalCloseBtn: document.getElementById('modalCloseBtn'),
+            keyPreview: document.getElementById('keyPreview'),
+            modalClearBtn: document.getElementById('modalClearBtn'),
+            modalApplyBtn: document.getElementById('modalApplyBtn')
         };
         
         this.init();
@@ -87,6 +120,7 @@ class RemoteMouseApp {
         this.setupEventListeners();
         this.setupServiceWorker();
         this.loadJigglerSettings();
+        this.loadKeystrokerSettings();
         this.startPreviewAnimation();
         this.createFeedbackElement();
     }
@@ -245,14 +279,14 @@ class RemoteMouseApp {
         // Handle hash changes
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.slice(1);
-            if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler')) {
+            if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler' || hash === 'key-stroker')) {
                 this.switchPage(hash);
             }
         });
         
         // Set initial page from hash
         const hash = window.location.hash.slice(1);
-        if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler')) {
+        if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler' || hash === 'key-stroker')) {
             this.switchPage(hash);
         }
     }
@@ -318,6 +352,9 @@ class RemoteMouseApp {
         // Jiggler events
         this.setupJigglerEvents();
         
+        // KeyStroker events
+        this.setupKeystrokerEvents();
+        
         // Prevent context menu on long press
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         
@@ -335,6 +372,37 @@ class RemoteMouseApp {
         this.elements.speedSlider.addEventListener('input', () => this.handleSpeedChange());
         this.elements.rangeSlider.addEventListener('input', () => this.handleRangeChange());
         this.elements.patternSelect.addEventListener('change', () => this.handlePatternChange());
+    }
+    
+    setupKeystrokerEvents() {
+        this.elements.keystrokerToggle.addEventListener('change', () => this.handleKeystrokerToggle());
+        this.elements.keystrokerIntervalSlider.addEventListener('input', () => this.handleKeystrokerIntervalChange());
+        
+        // Key capture events
+        this.elements.keyCaptureInput.addEventListener('click', () => this.startKeyCapture());
+        this.elements.clearKeyBtn.addEventListener('click', () => this.clearCapturedKey());
+        this.elements.virtualKeyboardBtn.addEventListener('click', () => this.openVirtualKeyboard());
+        
+        // Virtual keyboard modal events
+        this.elements.modalCloseBtn.addEventListener('click', () => this.closeVirtualKeyboard());
+        this.elements.modalClearBtn.addEventListener('click', () => this.clearVirtualKeyboard());
+        this.elements.modalApplyBtn.addEventListener('click', () => this.applyVirtualKeyboard());
+        
+        // Virtual keyboard key events
+        document.querySelectorAll('.modifier-key').forEach(btn => {
+            btn.addEventListener('click', (e) => this.toggleModifier(e.target.closest('.modifier-key')));
+        });
+        
+        document.querySelectorAll('.vk-key').forEach(btn => {
+            btn.addEventListener('click', (e) => this.selectVirtualKey(e.target.closest('.vk-key')));
+        });
+        
+        // Close modal on overlay click
+        this.elements.virtualKeyboardModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.virtualKeyboardModal) {
+                this.closeVirtualKeyboard();
+            }
+        });
     }
     
     // Jiggler Management
@@ -528,6 +596,391 @@ class RemoteMouseApp {
         }
     }
     
+    // KeyStroker Management
+    handleKeystrokerToggle() {
+        this.keystrokerEnabled = this.elements.keystrokerToggle.checked;
+        
+        this.sendMessage({ 
+            type: 'setKeystrokerEnabled', 
+            enabled: this.keystrokerEnabled 
+        });
+        
+        if (this.keystrokerEnabled) {
+            this.startKeystrokerCountdown();
+            this.elements.keystrokerCountdown.style.display = 'block';
+            this.updateKeystrokerStatus();
+            // Add active class for visual feedback
+            this.elements.keystrokerStatusIcon.parentElement.parentElement.classList.add('keystroker-active');
+        } else {
+            this.stopKeystrokerCountdown();
+            this.elements.keystrokerCountdown.style.display = 'none';
+            this.updateKeystrokerStatus();
+            // Remove active class
+            this.elements.keystrokerStatusIcon.parentElement.parentElement.classList.remove('keystroker-active');
+        }
+        
+        this.saveKeystrokerSettings();
+    }
+    
+
+    
+    handleKeystrokerIntervalChange() {
+        this.keystrokerSettings.interval = parseInt(this.elements.keystrokerIntervalSlider.value);
+        this.elements.keystrokerIntervalValue.textContent = this.formatTime(this.keystrokerSettings.interval);
+        
+        this.sendMessage({
+            type: 'setKeystrokerSettings',
+            key: this.keystrokerSettings.key,
+            interval: this.keystrokerSettings.interval
+        });
+        
+        this.saveKeystrokerSettings();
+        this.updateKeystrokerStatus();
+        this.resetKeystrokerCountdown();
+    }
+    
+    startKeystrokerCountdown() {
+        this.stopKeystrokerCountdown();
+        this.keystrokerCountdownValue = this.keystrokerSettings.interval;
+        this.updateKeystrokerCountdownDisplay();
+        
+        this.keystrokerCountdownInterval = setInterval(() => {
+            this.keystrokerCountdownValue--;
+            if (this.keystrokerCountdownValue <= 0) {
+                this.keystrokerCountdownValue = this.keystrokerSettings.interval;
+            }
+            this.updateKeystrokerCountdownDisplay();
+        }, 1000);
+    }
+    
+    stopKeystrokerCountdown() {
+        if (this.keystrokerCountdownInterval) {
+            clearInterval(this.keystrokerCountdownInterval);
+            this.keystrokerCountdownInterval = null;
+        }
+    }
+    
+    resetKeystrokerCountdown() {
+        if (this.keystrokerEnabled) {
+            this.startKeystrokerCountdown();
+        }
+    }
+    
+    updateKeystrokerCountdownDisplay() {
+        if (this.elements.keystrokerCountdownValue) {
+            if (this.keystrokerCountdownValue <= 0) {
+                this.elements.keystrokerCountdownValue.textContent = 'Now';
+            } else {
+                this.elements.keystrokerCountdownValue.textContent = `${this.keystrokerCountdownValue}s`;
+            }
+        }
+    }
+    
+    updateKeystrokerStatus() {
+        const keyCombo = this.formatKeyCombo(this.keystrokerSettings.modifiers, this.keystrokerSettings.key);
+        const statusText = this.keystrokerEnabled 
+            ? `Pressing ${keyCombo} every ${this.keystrokerSettings.interval} seconds`
+            : `Press ${keyCombo} every ${this.keystrokerSettings.interval} seconds`;
+        this.elements.keystrokerStatusLabel.textContent = statusText;
+    }
+    
+    // Key capture methods
+    startKeyCapture() {
+        if (this.isCapturingKey) {
+            this.stopKeyCapture();
+            return;
+        }
+        
+        this.isCapturingKey = true;
+        this.capturedModifiers.clear();
+        this.elements.keyCaptureInput.classList.add('capturing');
+        this.elements.keyCaptureHint.classList.add('visible');
+        this.elements.keyCaptureHint.textContent = 'Press any key or combination';
+        
+        // Add event listeners for key capture
+        this.keydownHandler = (e) => this.handleKeyDown(e);
+        this.keyupHandler = (e) => this.handleKeyUp(e);
+        
+        document.addEventListener('keydown', this.keydownHandler);
+        document.addEventListener('keyup', this.keyupHandler);
+        
+        // Stop capture on blur
+        this.elements.keyCaptureInput.addEventListener('blur', () => {
+            setTimeout(() => this.stopKeyCapture(), 100);
+        });
+    }
+    
+    stopKeyCapture() {
+        this.isCapturingKey = false;
+        this.capturedModifiers.clear();
+        this.elements.keyCaptureInput.classList.remove('capturing');
+        this.elements.keyCaptureHint.classList.remove('visible');
+        
+        if (this.keydownHandler) {
+            document.removeEventListener('keydown', this.keydownHandler);
+            document.removeEventListener('keyup', this.keyupHandler);
+        }
+    }
+    
+    handleKeyDown(e) {
+        if (!this.isCapturingKey) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Track modifier keys
+        if (e.ctrlKey || e.key === 'Control') this.capturedModifiers.add('ctrl');
+        if (e.altKey || e.key === 'Alt') this.capturedModifiers.add('alt');
+        if (e.shiftKey || e.key === 'Shift') this.capturedModifiers.add('shift');
+        if (e.metaKey || e.key === 'Meta') this.capturedModifiers.add('meta');
+        
+        // Ignore modifier-only presses
+        if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+            return;
+        }
+        
+        // Capture the actual key
+        let key = e.key;
+        
+        // Normalize key names
+        if (key === ' ') key = 'Space';
+        if (key === 'ArrowUp') key = '↑';
+        if (key === 'ArrowDown') key = '↓';
+        if (key === 'ArrowLeft') key = '←';
+        if (key === 'ArrowRight') key = '→';
+        
+        // Store the captured key combination
+        this.keystrokerSettings.key = key;
+        this.keystrokerSettings.modifiers = Array.from(this.capturedModifiers);
+        
+        // Update display
+        const keyCombo = this.formatKeyCombo(this.keystrokerSettings.modifiers, key);
+        this.elements.keyCaptureInput.value = keyCombo;
+        
+        // Send to backend
+        this.sendMessage({
+            type: 'setKeystrokerSettings',
+            key: this.keystrokerSettings.key,
+            modifiers: this.keystrokerSettings.modifiers,
+            interval: this.keystrokerSettings.interval
+        });
+        
+        this.saveKeystrokerSettings();
+        this.updateKeystrokerStatus();
+        this.resetKeystrokerCountdown();
+        
+        // Stop capturing
+        this.stopKeyCapture();
+    }
+    
+    handleKeyUp(e) {
+        if (!this.isCapturingKey) return;
+        
+        // Track modifier key releases
+        if (e.key === 'Control') this.capturedModifiers.delete('ctrl');
+        if (e.key === 'Alt') this.capturedModifiers.delete('alt');
+        if (e.key === 'Shift') this.capturedModifiers.delete('shift');
+        if (e.key === 'Meta') this.capturedModifiers.delete('meta');
+    }
+    
+    clearCapturedKey() {
+        this.keystrokerSettings.key = '';
+        this.keystrokerSettings.modifiers = [];
+        this.elements.keyCaptureInput.value = '';
+        this.elements.keyCaptureInput.placeholder = 'Click to set key...';
+        
+        this.sendMessage({
+            type: 'setKeystrokerSettings',
+            key: '',
+            modifiers: [],
+            interval: this.keystrokerSettings.interval
+        });
+        
+        this.saveKeystrokerSettings();
+        this.updateKeystrokerStatus();
+    }
+    
+    // Virtual keyboard methods
+    openVirtualKeyboard() {
+        this.elements.virtualKeyboardModal.classList.add('show');
+        this.virtualKeyboardModifiers.clear();
+        this.updateVirtualKeyboardPreview();
+        
+        // Reset modifier buttons
+        document.querySelectorAll('.modifier-key').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Set current modifiers if any
+        if (this.keystrokerSettings.modifiers) {
+            this.keystrokerSettings.modifiers.forEach(mod => {
+                this.virtualKeyboardModifiers.add(mod);
+                const btn = document.querySelector(`.modifier-key[data-modifier="${mod}"]`);
+                if (btn) btn.classList.add('active');
+            });
+        }
+        
+        this.updateVirtualKeyboardPreview();
+    }
+    
+    closeVirtualKeyboard() {
+        this.elements.virtualKeyboardModal.classList.remove('show');
+        this.virtualKeyboardModifiers.clear();
+    }
+    
+    toggleModifier(btn) {
+        const modifier = btn.dataset.modifier;
+        
+        if (this.virtualKeyboardModifiers.has(modifier)) {
+            this.virtualKeyboardModifiers.delete(modifier);
+            btn.classList.remove('active');
+        } else {
+            this.virtualKeyboardModifiers.add(modifier);
+            btn.classList.add('active');
+        }
+        
+        this.updateVirtualKeyboardPreview();
+    }
+    
+    selectVirtualKey(btn) {
+        const key = btn.dataset.key;
+        
+        // Store the combination
+        this.keystrokerSettings.key = key;
+        this.keystrokerSettings.modifiers = Array.from(this.virtualKeyboardModifiers);
+        
+        // Update display
+        const keyCombo = this.formatKeyCombo(this.keystrokerSettings.modifiers, key);
+        this.elements.keyCaptureInput.value = keyCombo;
+        
+        // Send to backend
+        this.sendMessage({
+            type: 'setKeystrokerSettings',
+            key: this.keystrokerSettings.key,
+            modifiers: this.keystrokerSettings.modifiers,
+            interval: this.keystrokerSettings.interval
+        });
+        
+        this.saveKeystrokerSettings();
+        this.updateKeystrokerStatus();
+        this.resetKeystrokerCountdown();
+        
+        // Close modal
+        this.closeVirtualKeyboard();
+    }
+    
+    clearVirtualKeyboard() {
+        this.virtualKeyboardModifiers.clear();
+        document.querySelectorAll('.modifier-key').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.updateVirtualKeyboardPreview();
+    }
+    
+    applyVirtualKeyboard() {
+        if (this.virtualKeyboardModifiers.size > 0 || this.elements.keyPreview.textContent !== 'Press keys...') {
+            // A key has been selected, apply it
+            const currentPreview = this.elements.keyPreview.textContent;
+            if (currentPreview !== 'Press keys...') {
+                this.elements.keyCaptureInput.value = currentPreview;
+            }
+        }
+        this.closeVirtualKeyboard();
+    }
+    
+    updateVirtualKeyboardPreview() {
+        const modifiers = Array.from(this.virtualKeyboardModifiers);
+        const preview = this.formatKeyCombo(modifiers, '');
+        
+        if (preview) {
+            this.elements.keyPreview.textContent = preview + '...';
+        } else {
+            this.elements.keyPreview.textContent = 'Press keys...';
+        }
+    }
+    
+    formatKeyCombo(modifiers, key) {
+        const parts = [];
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        
+        // Order modifiers consistently
+        if (modifiers.includes('meta')) {
+            parts.push(isMac ? '⌘' : 'Win');
+        }
+        if (modifiers.includes('ctrl')) {
+            parts.push(isMac ? '⌃' : 'Ctrl');
+        }
+        if (modifiers.includes('alt')) {
+            parts.push(isMac ? '⌥' : 'Alt');
+        }
+        if (modifiers.includes('shift')) {
+            parts.push(isMac ? '⇧' : 'Shift');
+        }
+        
+        if (key) {
+            // Format special keys
+            if (key === ' ') {
+                parts.push('Space');
+            } else if (key.length === 1) {
+                parts.push(key.toUpperCase());
+            } else {
+                parts.push(key);
+            }
+        }
+        
+        return parts.join(isMac ? '' : '+');
+    }
+    
+    saveKeystrokerSettings() {
+        try {
+            localStorage.setItem('keystrokerSettings', JSON.stringify({
+                enabled: this.keystrokerEnabled,
+                settings: this.keystrokerSettings
+            }));
+        } catch (e) {
+            console.error('Error saving keystroker settings:', e);
+        }
+    }
+    
+    loadKeystrokerSettings() {
+        try {
+            const saved = localStorage.getItem('keystrokerSettings');
+            if (saved) {
+                const data = JSON.parse(saved);
+                this.keystrokerEnabled = data.enabled || false;
+                this.keystrokerSettings = data.settings || {
+                    key: 'F12',
+                    modifiers: [],
+                    interval: 5
+                };
+                // Ensure modifiers array exists for backward compatibility
+                if (!this.keystrokerSettings.modifiers) {
+                    this.keystrokerSettings.modifiers = [];
+                }
+                this.updateKeystrokerUI();
+            }
+        } catch (e) {
+            console.error('Error loading keystroker settings:', e);
+        }
+    }
+    
+    updateKeystrokerUI() {
+        this.elements.keystrokerToggle.checked = this.keystrokerEnabled;
+        const keyCombo = this.formatKeyCombo(this.keystrokerSettings.modifiers || [], this.keystrokerSettings.key);
+        this.elements.keyCaptureInput.value = keyCombo;
+        this.elements.keystrokerIntervalSlider.value = this.keystrokerSettings.interval;
+        this.elements.keystrokerIntervalValue.textContent = this.formatTime(this.keystrokerSettings.interval);
+        this.updateKeystrokerStatus();
+        
+        if (this.keystrokerEnabled) {
+            this.elements.keystrokerCountdown.style.display = 'block';
+            this.startKeystrokerCountdown();
+            this.elements.keystrokerStatusIcon.parentElement.parentElement.classList.add('keystroker-active');
+        } else {
+            this.elements.keystrokerCountdown.style.display = 'none';
+            this.elements.keystrokerStatusIcon.parentElement.parentElement.classList.remove('keystroker-active');
+        }
+    }
 
     
     generateCirclePattern(range, speed) {
