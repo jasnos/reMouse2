@@ -9,14 +9,19 @@
 #include "custom_hid_mouse.h"
 #include <stdlib.h>
 
+// Exposed from usb_descriptors.cpp to select descriptor set before USB.begin()
+extern "C" void set_hid_mode(int mode);
+extern "C" int get_hid_mode();
+
 // Fix for Serial not being defined in some configurations
 #if !defined(Serial) && defined(Serial0)
 #define Serial Serial0
 #endif
 
-// WiFi credentials
-const char* ssid = "reMouse";
-const char* password = "remouse1";
+// WiFi credentials (configurable)
+String apSsid = "reMouse";
+String apPassword = "remouse1";
+bool apHidden = false;
 const char* hostname = "remouse";
 
 // Create AsyncWebServer object on port 80
@@ -54,6 +59,9 @@ std::vector<String> keystrokerModifiers;
 int keystrokerInterval = 5;
 unsigned long lastKeystrokerTime = 0;
 
+// USB descriptor selection persisted across reboots
+int hidMode = 0; // 0=mouse-only,1=boot-kbd,2=combo
+
 // JSON buffer size
 const size_t JSON_BUFFER_SIZE = 1024;
 
@@ -64,6 +72,13 @@ std::vector<std::pair<int, int>> generateSpiralPattern(int range, int speed);
 std::vector<std::pair<int, int>> generateSquarePattern(int range, int speed);
 std::vector<std::pair<int, int>> generateTrianglePattern(int range, int speed);
 std::vector<std::pair<int, int>> generateWanderPattern(int range, int speed);
+// Request a reboot to apply a descriptor set change (must be set before USB.begin)
+static void rebootForDescriptorChange(int newMode) {
+    hidMode = newMode;
+    preferences.putInt("hidmode", hidMode);
+    delay(50);
+    ESP.restart();
+}
 
 // Initialize LittleFS
 void initFileSystem() {
@@ -81,6 +96,11 @@ void loadSettings() {
     mouseEnabled = false;
     sensitivity = preferences.getFloat("sensitivity", 1.0);
     
+    // Load AP settings
+    apSsid = preferences.getString("ap_ssid", "reMouse");
+    apPassword = preferences.getString("ap_pass", "remouse1");
+    apHidden = preferences.getBool("ap_hidden", false);
+    
     // Load jiggler settings - this should persist across restarts
     jigglerEnabled = preferences.getBool("jiggler_enabled", false);
     jigglerInterval = preferences.getInt("jiggler_interval", 5);
@@ -92,6 +112,9 @@ void loadSettings() {
     keystrokerEnabled = false;  // Always start disabled for safety
     keystrokerKey = preferences.getString("keystroker_key", "F12");
     keystrokerInterval = preferences.getInt("keystroker_interval", 5);
+    
+    // Load descriptor mode
+    hidMode = preferences.getInt("hidmode", 0);
 }
 
 // Save settings to preferences
@@ -109,6 +132,12 @@ void saveSettings() {
     // Save KeyStroker settings - don't save enabled state for safety
     preferences.putString("keystroker_key", keystrokerKey);
     preferences.putInt("keystroker_interval", keystrokerInterval);
+    preferences.putInt("hidmode", hidMode);
+    
+    // Save AP settings
+    preferences.putString("ap_ssid", apSsid);
+    preferences.putString("ap_pass", apPassword);
+    preferences.putBool("ap_hidden", apHidden);
 }
 
 // Generate jiggler movement patterns (returns relative movements, not absolute positions)
@@ -663,6 +692,21 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 if (keystrokerEnabled) {
                     // Reset timer when enabling
                     lastKeystrokerTime = millis();
+                    // If not in a keyboard-capable mode, switch to combo (2)
+                    if (hidMode != 1 && hidMode != 2) {
+                        StaticJsonDocument<JSON_BUFFER_SIZE> note;
+                        note["type"] = "rebootingForKeyboardHID";
+                        String noteStr; serializeJson(note, noteStr); client->text(noteStr);
+                        rebootForDescriptorChange(2);
+                    }
+                } else {
+                    // Revert to mouse-only descriptors for compatibility on strict hosts
+                    if (hidMode != 0) {
+                        StaticJsonDocument<JSON_BUFFER_SIZE> note;
+                        note["type"] = "rebootingForMouseOnlyHID";
+                        String noteStr; serializeJson(note, noteStr); client->text(noteStr);
+                        rebootForDescriptorChange(0);
+                    }
                 }
                 
                 // Send confirmation
@@ -723,6 +767,46 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
                 String responseStr;
                 serializeJson(response, responseStr);
                 client->text(responseStr);
+            } else if (strcmp(type, "setHIDMode") == 0) {
+                // Modes: 0=mouse-only,1=boot-kbd,2=combo
+                int mode = doc["mode"];
+                if (mode < 0 || mode > 2) return;
+                if (mode != hidMode) {
+                    StaticJsonDocument<JSON_BUFFER_SIZE> note;
+                    if (mode == 0) note["type"] = "rebootingForMouseOnlyHID";
+                    else if (mode == 1) note["type"] = "rebootingForBootKeyboardHID";
+                    else note["type"] = "rebootingForComboHID";
+                    String noteStr; serializeJson(note, noteStr); client->text(noteStr);
+                    rebootForDescriptorChange(mode);
+                }
+            } else if (strcmp(type, "getHIDMode") == 0) {
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "hidMode";
+                response["mode"] = hidMode;
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
+            } else if (strcmp(type, "getAPSettings") == 0) {
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "apSettings";
+                response["ssid"] = apSsid;
+                response["hidden"] = apHidden;
+                response["pass"] = apPassword;
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
+            } else if (strcmp(type, "setAPSettings") == 0) {
+                apSsid = doc["ssid"].as<String>();
+                apPassword = doc["pass"].as<String>();
+                apHidden = doc["hidden"];
+                saveSettings();
+                StaticJsonDocument<JSON_BUFFER_SIZE> response;
+                response["type"] = "apSettingsSaved";
+                String responseStr;
+                serializeJson(response, responseStr);
+                client->text(responseStr);
+                delay(100);
+                ESP.restart();
             }
         }
     }
@@ -822,12 +906,17 @@ public:
 };
 
 void setup() {
-    // Initialize USB
-    USB.begin();
-    
     // Initialize preferences
     preferences.begin("remouse", false);
     loadSettings();
+
+    // Select USB descriptor set BEFORE USB.begin() based on stored preference
+    set_hid_mode(hidMode);
+
+    // Initialize USB after descriptor selection
+    USB.begin();
+    
+    // Re-load settings not strictly needed but keeps order consistent
     
     // Initialize file system
     initFileSystem();
@@ -841,7 +930,11 @@ void setup() {
     
     // Set up WiFi Access Point
     WiFi.mode(WIFI_AP);
-    WiFi.softAP(ssid, password);
+    if (apPassword.length() >= 8) {
+        WiFi.softAP(apSsid.c_str(), apPassword.c_str(), 1, apHidden ? 1 : 0);
+    } else {
+        WiFi.softAP(apSsid.c_str(), nullptr, 1, apHidden ? 1 : 0);
+    }
     WiFi.setHostname(hostname);
     
     // Set up mDNS

@@ -93,6 +93,11 @@ class RemoteMouseApp {
             
             // KeyStroker elements
             keystrokerToggle: document.getElementById('keystrokerToggle'),
+            hidModeSelect: document.getElementById('hidModeSelect'),
+            apSsidInput: document.getElementById('apSsidInput'),
+            apPassInput: document.getElementById('apPassInput'),
+            apHiddenToggle: document.getElementById('apHiddenToggle'),
+            apSaveBtn: document.getElementById('apSaveBtn'),
             keyCaptureInput: document.getElementById('keyCaptureInput'),
             keyCaptureHint: document.getElementById('keyCaptureHint'),
             clearKeyBtn: document.getElementById('clearKeyBtn'),
@@ -123,6 +128,8 @@ class RemoteMouseApp {
         this.loadKeystrokerSettings();
         this.startPreviewAnimation();
         this.createFeedbackElement();
+        // Fetch current HID mode to set dropdown
+        this.sendMessage({ type: 'getHIDMode' });
     }
     
     createFeedbackElement() {
@@ -159,6 +166,7 @@ class RemoteMouseApp {
         clearTimeout(this.reconnectTimer);
         this.sendMessage({ type: 'getSettings' });
         this.sendMessage({ type: 'getJigglerSettings' });
+        this.sendMessage({ type: 'getAPSettings' });
         
         // Request countdown sync if jiggler is enabled
         if (this.jigglerEnabled) {
@@ -227,6 +235,18 @@ class RemoteMouseApp {
                     
                     this.updateCountdownDisplay();
                 }
+            } else if (data.type === 'hidMode') {
+                if (this.elements.hidModeSelect) {
+                    this.elements.hidModeSelect.value = String(data.mode);
+                }
+            } else if (data.type === 'apSettings') {
+                if (this.elements.apSsidInput && (data.ssid !== undefined)) this.elements.apSsidInput.value = data.ssid;
+                if (this.elements.apHiddenToggle && (data.hidden !== undefined)) this.elements.apHiddenToggle.checked = !!data.hidden;
+                if (this.elements.apPassInput && (data.pass !== undefined)) this.elements.apPassInput.value = data.pass;
+            } else if (data.type === 'apSettingsSaved') {
+                this.showFeedback('AP settings saved. Rebooting...');
+            } else if (data.type === 'rebootingForKeyboardHID' || data.type === 'rebootingForMouseOnlyHID' || data.type === 'rebootingForBootKeyboardHID' || data.type === 'rebootingForComboHID') {
+                this.showFeedback('USB mode changing... device will reboot');
             }
         } catch (error) {
             console.error('Error parsing WebSocket message:', error);
@@ -279,14 +299,14 @@ class RemoteMouseApp {
         // Handle hash changes
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.slice(1);
-            if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler' || hash === 'key-stroker')) {
+            if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler' || hash === 'key-stroker' || hash === 'settings')) {
                 this.switchPage(hash);
             }
         });
         
         // Set initial page from hash
         const hash = window.location.hash.slice(1);
-        if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler' || hash === 'key-stroker')) {
+        if (hash && (hash === 'mouse-control' || hash === 'mouse-jiggler' || hash === 'key-stroker' || hash === 'settings')) {
             this.switchPage(hash);
         }
     }
@@ -377,6 +397,10 @@ class RemoteMouseApp {
     setupKeystrokerEvents() {
         this.elements.keystrokerToggle.addEventListener('change', () => this.handleKeystrokerToggle());
         this.elements.keystrokerIntervalSlider.addEventListener('input', () => this.handleKeystrokerIntervalChange());
+        this.elements.hidModeSelect.addEventListener('change', () => this.handleHIDModeChange());
+        if (this.elements.apSaveBtn) {
+            this.elements.apSaveBtn.addEventListener('click', () => this.handleAPSave());
+        }
         
         // Key capture events
         this.elements.keyCaptureInput.addEventListener('click', () => this.startKeyCapture());
@@ -980,6 +1004,27 @@ class RemoteMouseApp {
             this.elements.keystrokerCountdown.style.display = 'none';
             this.elements.keystrokerStatusIcon.parentElement.parentElement.classList.remove('keystroker-active');
         }
+    }
+
+    // HID Mode
+    handleHIDModeChange() {
+        const mode = parseInt(this.elements.hidModeSelect.value);
+        if (Number.isNaN(mode)) return;
+        // Inform user about imminent reboot
+        this.sendMessage({ type: 'setHIDMode', mode });
+        this.showFeedback('Changing USB mode, device will reboot...');
+    }
+
+    handleAPSave() {
+        const ssid = (this.elements.apSsidInput?.value || '').trim();
+        const pass = (this.elements.apPassInput?.value || '').trim();
+        const hidden = !!this.elements.apHiddenToggle?.checked;
+        if (pass.length > 0 && pass.length < 8) {
+            this.showFeedback('Password must be 8+ characters or empty');
+            return;
+        }
+        this.sendMessage({ type: 'setAPSettings', ssid, pass, hidden });
+        this.showFeedback('Saving AP settings... device will reboot');
     }
 
     

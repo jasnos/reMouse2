@@ -5,6 +5,7 @@
 #include <string.h>
 #include <Arduino.h>
 #include "tusb.h"
+extern "C" int get_hid_mode(); // 0=mouse-only,1=boot-kbd,2=combo
 
 // Button bit masks (matching standard HID mouse buttons)
 #define MOUSE_LEFT  0x01
@@ -210,8 +211,18 @@ private:
     uint8_t _keyReport[8];  // Standard keyboard report
 
     void sendKeyReport() {
-        // Send keyboard report with report ID 1 (standard keyboard)
-        tud_hid_report(1 /* report ID */, _keyReport, sizeof(_keyReport));
+        // Guard: only send if device is ready and a keyboard-capable mode is active
+        extern bool tud_ready(void);
+        if (!tud_ready()) return;
+        int mode = get_hid_mode();
+        if (mode == 0) return; // mouse-only, no keyboard interface
+        if (mode == 1) {
+            // Boot keyboard: no report ID
+            tud_hid_report(0 /* no report ID */, _keyReport, sizeof(_keyReport));
+        } else {
+            // Combo mode: keyboard uses Report ID 1
+            tud_hid_report(1 /* report ID */, _keyReport, sizeof(_keyReport));
+        }
     }
 
 

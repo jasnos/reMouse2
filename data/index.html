@@ -43,6 +43,9 @@
                     <li class="nav-item">
                         <a href="#key-stroker" class="nav-link" data-page="key-stroker">KeyStroker</a>
                     </li>
+                    <li class="nav-item">
+                        <a href="#settings" class="nav-link" data-page="settings">Settings</a>
+                    </li>
                 </ul>
             </div>
         </nav>
@@ -239,6 +242,17 @@
 
                     <div class="keystroker-settings">
                         <div class="setting-group">
+                            <label for="hidModeSelect" class="setting-label">
+                                <span>USB HID Mode</span>
+                            </label>
+                            <select id="hidModeSelect" class="setting-select" aria-label="HID mode selection">
+                                <option value="0">Mouse Only (Compatible)</option>
+                                <option value="1">Boot Keyboard Only (Strict)</option>
+                                <option value="2">Keyboard + Mouse (Combo)</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-group">
                             <label for="keyCaptureInput" class="setting-label">
                                 <span>Key or Combination</span>
                             </label>
@@ -295,6 +309,40 @@
                                 </svg>
                             </div>
                             <div class="status-label" id="keystrokerStatusLabel">Press F12 every 5 seconds</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Page -->
+            <section class="page-content" id="settings-page">
+                <div class="keystroker-panel">
+                    <div class="jiggler-settings">
+                        <div class="setting-group">
+                            <label class="setting-label" for="apSsidInput">
+                                <span>Access Point SSID</span>
+                            </label>
+                            <input id="apSsidInput" class="setting-input large-input" type="text" placeholder="reMouse" maxlength="32" aria-label="AP SSID">
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label" for="apPassInput">
+                                <span>Access Point Password</span>
+                            </label>
+                            <input id="apPassInput" class="setting-input large-input" type="password" placeholder="remouse1" maxlength="63" aria-label="AP password">
+                            <div class="slider-labels" style="justify-content:flex-start"><span>Leave empty for open network; WPA2 needs 8+ chars</span></div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="toggle-label" for="apHiddenToggle">
+                                <span>Hide SSID</span>
+                                <input type="checkbox" id="apHiddenToggle" class="toggle-input">
+                                <span class="toggle-switch"></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-group">
+                            <button id="apSaveBtn" class="modal-btn modal-btn-primary" style="width:100%">Save AP Settings (reboots)</button>
                         </div>
                     </div>
                 </div>

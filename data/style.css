@@ -794,6 +794,30 @@ body {
     text-align: center;
 }
 
+/* Larger inputs styling for settings */
+.setting-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-primary);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 500;
+    transition: all var(--transition-speed);
+}
+
+.setting-input:hover, .setting-input:focus {
+    border-color: rgba(255, 255, 255, 0.25);
+    background: var(--bg-tertiary);
+    outline: none;
+}
+
+.large-input {
+    font-size: 18px;
+    padding: 14px 18px;
+}
+
 /* Key Capture Input Styles */
 .key-capture-container {
     display: flex;
